@@ -39,9 +39,12 @@ numfunc_t dispNum[] = {
 };
 
 void loop() {
-  int count = (int)millis() / 100;
+  /*int count = (int)(millis() / 100);
   bool flip = ((count / 10) % 6) < 3;
-  disp(count, flip);
+  Serial.print(count);
+  Serial.print(' ');
+  Serial.println(flip);*/
+  disp(-1, true);
 
   
   
@@ -61,6 +64,11 @@ void disp(int num, bool up) {
   int dig2 = num % 10;
   num /= 10;
   int dig3 = num % 10;
+
+  dig0 = abs(dig0);
+  dig1 = abs(dig1);
+  dig2 = abs(dig2);
+  dig3 = abs(dig3);
   
   digitalWrite(D0, LOW);
   dispNum[(up) ? dig0 : dig3](up);
