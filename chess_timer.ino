@@ -39,7 +39,6 @@ numfunc_t dispNum[] = {
 };
 
 void loop() {
-  int i;
   int count = (int)millis() / 100;
   bool flip = ((count / 10) % 6) < 3;
   disp(count, flip);
