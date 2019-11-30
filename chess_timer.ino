@@ -1,3 +1,5 @@
+#include <Wire.h>
+#include <stdint.h>
 #define D2  14
 #define D1  15
 #define D3  16
@@ -9,6 +11,11 @@
 #define SEG_TOPR  7 //TopR
 #define SEG_TOPL  8 //TopL
 #define SEG_TOP   9 //Top
+#define DEVADDR   0x68
+#define ACCELADDR 0x3b
+#define GYROADDR  0x43
+
+#define MAKE16(h,l)  ((((int16_t)h) << 8) | ((int16_t)l))
 
 void setup() {
   // put your setup code here, to run once:
@@ -30,6 +37,8 @@ void setup() {
   digitalWrite(D1, HIGH);
   digitalWrite(D3, HIGH);
   digitalWrite(D0, HIGH);
+
+  initAccel();
 }
 
 typedef void(*numfunc_t)(bool);
@@ -38,20 +47,66 @@ numfunc_t dispNum[] = {
   zero, one, two, three, four, five, six, seven, eight, nine, empty
 };
 
+typedef struct accel_out {
+  uint8_t xh;
+  uint8_t xl;
+  uint8_t yh;
+  uint8_t yl;
+  uint8_t zh;
+  uint8_t zl;
+} accel_out_t;
+
 void loop() {
-  /*int count = (int)(millis() / 100);
-  bool flip = ((count / 10) % 6) < 3;
-  Serial.print(count);
-  Serial.print(' ');
-  Serial.println(flip);*/
-  disp(-1, true);
+  static unsigned long timeLast = 0;
+  int count = (int)(millis() / 100);
+  disp(count, true);
 
   
+  if(1000 < (millis() - timeLast)) {
+    readAccel();
+    timeLast = millis();
+  }
+}
+
+void initAccel() {
+  Wire.begin();
+  Wire.beginTransmission(DEVADDR);
+  Wire.write(0x6b);
+  Wire.write(0x01);  //Binary number to conifgure power management settings, disable sleep, set clock
+  Wire.endTransmission();
+
+  Wire.beginTransmission(DEVADDR);
+  Wire.write(0x75);
+  Wire.endTransmission();
+  Wire.beginTransmission(DEVADDR);
+  Wire.requestFrom(DEVADDR, 1);
+  uint8_t whoami_data = Wire.read();
+  Serial.println("Who am I returned:");
+  Serial.println(whoami_data, HEX);
+}
+
+void readAccel() {
+  accel_out_t accelData = {0};
+  Wire.beginTransmission(DEVADDR);
+  Wire.write(ACCELADDR);
+  Wire.endTransmission();
+
+  Wire.beginTransmission(DEVADDR);
+  Wire.requestFrom(DEVADDR, sizeof(accel_out_t));
+
+  for(int i = 0; i < sizeof(accel_out_t); i++) {
+    *(((char*)&accelData)+i) = Wire.read();
+  }
+
+  Wire.endTransmission();
   
-  /*(for (i = 0; i <= 10; i++) {
-    dispNum[i](false);
-    delay(300);
-  } */
+  Serial.print("x : ");
+  Serial.print(MAKE16(accelData.xh, accelData.xl));
+  Serial.print(" y : ");
+  Serial.print(MAKE16(accelData.yh, accelData.yl));
+  Serial.print(" z : ");
+  Serial.print(MAKE16(accelData.zh, accelData.zl));
+  Serial.println();
 }
 
 void disp(int num, bool up) {
@@ -69,19 +124,23 @@ void disp(int num, bool up) {
   dig1 = abs(dig1);
   dig2 = abs(dig2);
   dig3 = abs(dig3);
-  
+
+  empty(true);
   digitalWrite(D0, LOW);
   dispNum[(up) ? dig0 : dig3](up);
   delay(del);
   digitalWrite(D0, HIGH);
+  empty(true);
   digitalWrite(D1, LOW);
   dispNum[(up) ? dig1 : dig2](up);
   delay(del);
   digitalWrite(D1, HIGH);
+  empty(true);
   digitalWrite(D2, LOW);
   dispNum[(up) ? dig2 : dig1](up);
   delay(del);
   digitalWrite(D2, HIGH);
+  empty(true);
   digitalWrite(D3, LOW);
   dispNum[(up) ? dig3 : dig0](up);
   delay(del);
