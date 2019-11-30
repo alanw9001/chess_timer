@@ -58,13 +58,30 @@ typedef struct accel_out {
 
 void loop() {
   static unsigned long timeLast = 0;
-  int count = (int)(millis() / 100);
-  disp(count, true);
+  static bool ori = 0;
+  static unsigned long clockLast = 0;
+  static long clock1 = 300000;
+  static long clock2 = 300000;
 
+  unsigned long deltaTime = millis() - clockLast;
+  clockLast = millis();
   
-  if(1000 < (millis() - timeLast)) {
-    readAccel();
+  if(ori) {
+    clock1 = clock1 - deltaTime;
+  }
+  else {
+    clock2 = clock2 - deltaTime;
+  }
+  
+  disp(
+    ((ori) ? clock1 : clock2) / 100,
+    ori
+  );
+
+  if(100 < (millis() - timeLast)) {
+    ori = readAccel();
     timeLast = millis();
+    
   }
 }
 
@@ -85,7 +102,7 @@ void initAccel() {
   Serial.println(whoami_data, HEX);
 }
 
-void readAccel() {
+bool readAccel() {
   accel_out_t accelData = {0};
   Wire.beginTransmission(DEVADDR);
   Wire.write(ACCELADDR);
@@ -107,6 +124,9 @@ void readAccel() {
   Serial.print(" z : ");
   Serial.print(MAKE16(accelData.zh, accelData.zl));
   Serial.println();
+
+  int16_t zstat = MAKE16(accelData.zh, accelData.zl);
+  return !(zstat > 0);
 }
 
 void disp(int num, bool up) {
